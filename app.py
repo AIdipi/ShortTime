@@ -24,6 +24,43 @@ def allowed_file(filename):
 def index():
     return render_template('index.html')
 
+# @app.route('/upload', methods=['POST'])
+# def upload_file():
+#     if 'file' not in request.files:
+#         return redirect(request.url)
+#     file = request.files['file'] # file 변수를 업로드한 파일명으로 설정
+#     if file.filename == '':
+#         return redirect(request.url)
+#     if file and allowed_file(file.filename): # filename이 ''가 아님
+#         filename = secure_filename(file.filename) # 파일 이름을 안전하게 만듦 -> 어떻게?
+#         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+#         file.save(file_path)
+#
+#         # Run the tracking script
+#         reid_model_path = 'osnet_x0_25_msmt17.pt' # reid 모델 불러오기
+#         project_path = app.config['RESULTS_FOLDER'] # 결과를 저장한 디렉터리 경로
+#         name = filename.rsplit('.', 1)[0]  # Use the file name without extension as the result directory name
+#         result_dir = os.path.join(project_path, name)
+#         print(project_path, result_dir)
+#         if not os.path.exists(result_dir):
+#             os.makedirs(result_dir)
+#
+#         try:
+#             command = f'python tracking/track.py --source {file_path} --reid-model {reid_model_path} --save --project {project_path} --name {name} --save-id-crops --show-conf'
+#             subprocess.check_call(command, shell=True)
+#         except subprocess.CalledProcessError as e:
+#             return f"An error occurred: {e}"
+#
+#         return redirect(url_for('result',name= result_dir))
+#
+#
+# @app.route('/result')
+# def result():
+#     name = request.args.get('name')
+#     video_path = os.path.join(name, 'Newjeans.mp4')  # Construct the path to the output video file relative to the RESULTS_FOLDER
+#     print(name, video_path)
+#     return render_template('result.html', video_path=video_path)
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -39,25 +76,23 @@ def upload_file():
         # Run the tracking script
         reid_model_path = 'osnet_x0_25_msmt17.pt'
         project_path = app.config['RESULTS_FOLDER']
-        name = filename.rsplit('.', 1)[0]  # Use the file name without extension as the result directory name
-        result_dir = os.path.join(project_path, name)
-        if not os.path.exists(result_dir):
-            os.makedirs(result_dir)
+        name = filename.rsplit('.', 1)[0]
 
         try:
             command = f'python tracking/track.py --source {file_path} --reid-model {reid_model_path} --save --project {project_path} --name {name} --save-id-crops --show-conf'
             subprocess.check_call(command, shell=True)
         except subprocess.CalledProcessError as e:
             return f"An error occurred: {e}"
-    
-        return redirect(url_for('result',name= name))
+
+        return redirect(url_for('result', name=name))
 
 
 @app.route('/result')
 def result():
     name = request.args.get('name')
-    video_path = os.path.join(name, 'output.avi')  # Construct the path to the output video file relative to the RESULTS_FOLDER
+    video_path = os.path.join(name, name +'.mp4')  # Adjust as needed for the actual output video filename
     return render_template('result.html', video_path=video_path)
+
 
 @app.route('/results/<path:filename>')
 def download_file(filename):
