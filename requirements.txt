@@ -3,3 +3,4 @@ pip install poetry
 poetry install --with yolo
 poetry shell
 pip install boxmot
+pip install ffmpeg
