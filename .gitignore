@@ -48,3 +48,6 @@ dist/
 
 # cmc debug images
 boxmot/motion/cmc/*.jpg
+
+results/
+uploads/
