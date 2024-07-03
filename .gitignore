@@ -51,3 +51,5 @@ boxmot/motion/cmc/*.jpg
 
 results/
 uploads/
+
+osnet_x0_25_msmt17.pt
