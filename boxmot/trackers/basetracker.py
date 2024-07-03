@@ -13,7 +13,9 @@ class BaseTracker(ABC):
         max_age: int = 30,
         min_hits: int = 3,
         iou_threshold: float = 0.3,
-        max_obs: int = 50
+        max_obs: int = 50,
+        track_id: int = None  # Add track_id parameter
+
     ):
         """
         Initialize the BaseTracker object with detection threshold, maximum age, minimum hits, 
@@ -35,14 +37,23 @@ class BaseTracker(ABC):
         self.min_hits = min_hits
         self.iou_threshold = iou_threshold
         self.per_class_active_tracks = {}
+        self.track_id = track_id  # Store the track_id
+
+    def set_track_id(self, track_id):
+        self.track_id = track_id
+
 
         self.frame_count = 0
         self.active_tracks = []  # This might be handled differently in derived classes
-        
+    
+
         if self.max_age >= self.max_obs:
             LOGGER.warning("Max age > max observations, increasing size of max observations...")
             self.max_obs = self.max_age + 5
             print("self.max_obs", self.max_obs)
+
+
+    
 
     @abstractmethod
     def update(self, dets: np.ndarray, img: np.ndarray, embs: np.ndarray = None) -> np.ndarray:
@@ -58,6 +69,8 @@ class BaseTracker(ABC):
         Raises:
         - NotImplementedError: If the subclass does not implement this method.
         """
+       
+    
         raise NotImplementedError("The update method needs to be implemented by the subclass.")
 
     def id_to_color(self, id: int, saturation: float = 0.75, value: float = 0.95) -> tuple:
@@ -160,6 +173,7 @@ class BaseTracker(ABC):
         return img
 
 
+       
     def plot_results(self, img: np.ndarray, show_trajectories: bool) -> np.ndarray:
         """
         Visualizes the trajectories of all active tracks on the image. For each track,
@@ -173,26 +187,24 @@ class BaseTracker(ABC):
         Returns:
         - np.ndarray: The image array with trajectories and bounding boxes of all active tracks.
         """
-
-        # if values in dict
         if self.per_class_active_tracks:
             for k in self.per_class_active_tracks.keys():
                 active_tracks = self.per_class_active_tracks[k]
                 for a in active_tracks:
+                    if a.id == self.track_id:  # Check if this is the specific ID to track
+                        if a.history_observations:
+                            if len(a.history_observations) > 2:
+                                box = a.history_observations[-1]
+                                img = self.plot_box_on_img(img, box, a.conf, a.cls, a.id)
+                                if show_trajectories:
+                                    img = self.plot_trackers_trajectories(img, a.history_observations, a.id)
+        else:
+            for a in self.active_tracks:
+                if a.id == self.track_id:  # Check if this is the specific ID to track
                     if a.history_observations:
                         if len(a.history_observations) > 2:
                             box = a.history_observations[-1]
                             img = self.plot_box_on_img(img, box, a.conf, a.cls, a.id)
                             if show_trajectories:
                                 img = self.plot_trackers_trajectories(img, a.history_observations, a.id)
-        else:
-            for a in self.active_tracks:
-                if a.history_observations:
-                    if len(a.history_observations) > 2:
-                        box = a.history_observations[-1]
-                        img = self.plot_box_on_img(img, box, a.conf, a.cls, a.id)
-                        if show_trajectories:
-                            img = self.plot_trackers_trajectories(img, a.history_observations, a.id)
-                
         return img
-
