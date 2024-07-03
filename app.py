@@ -53,7 +53,8 @@ def upload_file():
 @app.route('/result')
 def result():
     name = request.args.get('name')
-    video_path = os.path.join(name, name +'.mp4')  # Adjust as needed for the actual output video filename
+    video_path = os.path.join(name, name +'.avi')  # Adjust as needed for the actual output video filename
+    print(video_path)
     return render_template('result.html', video_path=video_path)
 
 
@@ -63,4 +64,5 @@ def download_file(filename):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run()
