@@ -1,4 +1,3 @@
-cd yolo_tracking
 pip install poetry
 poetry install --with yolo
 poetry shell
