@@ -1,3 +1,4 @@
+import torch
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 import os
 from werkzeug.utils import secure_filename
@@ -6,7 +7,7 @@ from boxmot import DeepOCSORT
 import cv2
 from ultralytics import YOLO
 import numpy as np
-from video import frame_to_time, clip_video, crop_frame
+from video import frame_to_time, clip_video, crop_frame, frames_to_video, create_final_video, clip_audio
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -44,7 +45,7 @@ def upload_file():
 
         # # Run the tracking script
         reid_model_path = "osnet_x0_25_msmt17.pt" # reid 모델 불러오기
-        project_path = app.config['RESULTS_FOLDER'] # 결과를 저장한 디렉터리 이름(results)
+        result_dir = app.config['RESULTS_FOLDER'] # 결과를 저장한 디렉터리 이름(results)
         name = filename.rsplit('.', 1)[0]
 
         select_id = 1  # 선택한 id(추후 변수 처리)
@@ -54,7 +55,7 @@ def upload_file():
         newboxes = []
         tracker = DeepOCSORT(
             model_weights=Path(reid_model_path),
-            device='cpu',
+            device=torch.device("mps"),
             fp16=False
         )
 
@@ -62,10 +63,10 @@ def upload_file():
         w, h, fps = (int(cap.get(x)) for x in
                      (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))  # 프레임 크기 저장
 
-        out = cv2.VideoWriter(project_path+'/'+filename,
-                                 cv2.VideoWriter_fourcc(*'mp4v'),
-                                 fps,
-                                 (w, h))
+        out = cv2.VideoWriter(os.path.join(app.config['PROCESS_FOLDER'], f'{filename}_'),
+                              cv2.VideoWriter_fourcc(*'mp4v'),
+                              fps,
+                              (w, h))
         model = YOLO("tracking/weights/yolov8n.pt")
 
         while cap.isOpened():
@@ -98,9 +99,8 @@ def upload_file():
                 for box in p_boxes:
                     frame_count, x1, y1, x2, y2, id = box
                     if id == select_id - 1:
-                        print(f"Frame {frame_count}")
                         newboxes.append([frame_count, x1, y1, x2, y2, id])
-
+                print("Frame count: ", frame_count)
                 out.write(frame)
             else:
                 break
@@ -113,9 +113,12 @@ def upload_file():
         print(s_time, e_time)
 
         output_path = os.path.join(app.config['PROCESS_FOLDER'], name)
-        clip_video(name, file_path, s_time, e_time, output_path)
-        crop_frame(newboxes, name, output_path)
-
+        os.makedirs(output_path, exist_ok=True)
+        audio_file = clip_audio(name, file_path, s_time, e_time, output_path)
+        video_file = clip_video(name, file_path, s_time, e_time, output_path)
+        frame_file_path = crop_frame(newboxes, video_file, output_path)
+        video_file = frames_to_video(fps, frame_file_path, name, output_path)
+        create_final_video(name, video_file, audio_file, result_dir)
 
         #
         # result.release()
