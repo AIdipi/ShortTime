@@ -51,6 +51,7 @@ dist/
 boxmot/motion/cmc/*.jpg
 
 results/
+process/
 uploads/
 
 osnet_x0_25_msmt17.pt
