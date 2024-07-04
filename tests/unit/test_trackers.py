@@ -77,7 +77,6 @@ def test_per_class_tracker_output_size(tracker_type):
                     [425, 281, 576, 472, 0.56, 65]])
 
     output = tracker.update(det, rgb)
-    output = tracker.update(det, rgb)
     assert output.shape == (2, 8)  # two inputs should give two outputs
 
 
