@@ -95,7 +95,7 @@ def frames_to_video(fps, frame_file_path, file_name, output_path):
 def create_final_video(file_name, video_path, audio_path, output_path):
     output_file_path = os.path.join(output_path, f"{file_name}.mp4")
 
-    command = f'ffmpeg -i "{video_path}.mp4" -i "{audio_path}.mp3" -c:v copy -c:a aac -strict experimental "{output_file_path}"'
+    command = f'ffmpeg -i "{video_path}" -i "{audio_path}" -c:v copy -c:a aac -strict experimental "{output_file_path}"'
 
     try:
         result = subprocess.run(command, shell=True, capture_output=True)  # ffmpeg 명령어 실행
