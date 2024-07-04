@@ -86,13 +86,21 @@ def upload_file():
 
                 tracker.set_track_id(select_id)
                 tracks = tracker.update(dets, frame)
+                # print(tracks)
 
-                for track in tracks:
-                    if track[-1] == select_id:  # select_id에 해당하는 트랙 찾기
-                        x1, y1, x2, y2 = track[:4]
-                        print(f"Frame {frame_count}: ID {select_id} Bounding Box: ({x1}, {y1}, {x2}, {y2})")
+                boxes = tracks[:, :4].tolist()
+                track_ids = tracks[:, -1].int().tolist()
 
-                frame = tracker.plot_results(frame, show_trajectories=True)
+
+
+                # for track in tracks: # track = [x1,y1,x2,y2, [trk.id], [trk.conf], [trk.cls], [trk.det_ind]]
+
+                for box, track_id in zip(boxes, track_ids):
+                    x1, y1, x2, y2 = box
+                    print(f"Frame {frame_count}: ID {track_id} Bounding Box: {box} Bounding Box: ({x1}, {y1}, {x2}, {y2})")
+                    p_boxes.append([frame_count, [track_id, box]])
+                    print(p_boxes)
+
                 out.write(frame)
 
             else:
