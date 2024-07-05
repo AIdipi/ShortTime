@@ -1,7 +1,7 @@
 import subprocess
 import os
 import chardet
-import cv2
+
 # 프레임을 시간 단위로 변경
 def frame_to_time(frame_count, fps):
     total_seconds = frame_count / fps
@@ -65,18 +65,11 @@ def crop_frame(p_boxes, input_path, output_path):
     w = max(width)
     h = max(height)
 
-    cap = cv2.VideoCapture(input_path)
-    for i, p_box in enumerate(p_boxes):
-        frame_num = p_box[0]
-        x1, y1, x2, y2 = p_box[1:5]
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-        success, frame = cap.read()
-        if success:
-            x = int((x1 + x2) / 2 - w / 2)
-            y = int((y1 + y2) / 2 - h / 2)
-            cropped_frame = frame[y:y + h, x:x + w]
-            cv2.imwrite(f"{frame_file_path}_{i:04d}.png", cropped_frame)
-    cap.release()
+    for i in range(len(p_boxes)):
+        x = int(p_boxes[i][3] - p_boxes[i][1]) / 2
+        y = int(p_boxes[i][4] - p_boxes[i][2]) / 2
+        command = f'ffmpeg -i "{input_path}" -vf "crop={w}:{h}:{int(x - (w / 2))}:{int(y - (h / 2))}, select=\'eq(n\\,{i})\'" -frames:v 1 "{frame_file_path}_{i:04d}.png"'
+        subprocess.run(command, shell=True)
 
     print("프레임 추출 완료")
     return frame_file_path
