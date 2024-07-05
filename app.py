@@ -14,6 +14,8 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'mp4'}
 app.config['PROCESS_FOLDER'] = 'process'
 app.config['RESULTS_FOLDER'] = 'results'
+app.config['STATIC_FOLDER'] = 'static/frames'
+
 
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
@@ -23,6 +25,11 @@ if not os.path.exists(app.config['PROCESS_FOLDER']):
 
 if not os.path.exists(app.config['RESULTS_FOLDER']):
     os.makedirs(app.config['RESULTS_FOLDER'])
+
+if not os.path.exists(app.config['STATIC_FOLDER']):
+    os.makedirs(app.config['STATIC_FOLDER'])
+
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -40,7 +47,7 @@ def upload_file():
         return redirect(request.url)
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename) # 안전한 파일명으로 바꿈 ex. '/' or '\' 제거
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).replace('\\', '/')
         file.save(file_path)
 
         # # Run the tracking script
@@ -48,14 +55,12 @@ def upload_file():
         result_dir = app.config['RESULTS_FOLDER'] # 결과를 저장한 디렉터리 이름(results)
         name = filename.rsplit('.', 1)[0]
 
-        select_id = 1  # 선택한 id(추후 변수 처리)
-
+        
         frame_count = 0
-        p_boxes = []
-        newboxes = []
+        p_boxes = {}
         tracker = DeepOCSORT(
             model_weights=Path(reid_model_path),
-            device=torch.device("mps"),
+            device=torch.device("cpu"),
             fp16=False
         )
 
@@ -63,7 +68,7 @@ def upload_file():
         w, h, fps = (int(cap.get(x)) for x in
                      (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))  # 프레임 크기 저장
 
-        out = cv2.VideoWriter(os.path.join(app.config['PROCESS_FOLDER'], f'{filename}_'),
+        out = cv2.VideoWriter(os.path.join(app.config['PROCESS_FOLDER'], f'{name}.mp4').replace('\\', '/'),
                               cv2.VideoWriter_fourcc(*'mp4v'),
                               fps,
                               (w, h))
@@ -82,62 +87,107 @@ def upload_file():
                         dets.append([x1, y1, x2, y2, conf, int(cls)])
                 dets = np.array(dets)
 
-                tracker.set_track_id(select_id)
                 tracks = tracker.update(dets, frame)
-                # print(tracks)
+
 
                 boxes = tracks[:, :4].tolist()
                 track_ids = tracks[:, -1].tolist()
+                # print(tracks)
+
+                
                 # for track in tracks: # track = [x1,y1,x2,y2, [trk.id], [trk.conf], [trk.cls], [trk.det_ind]]
                 for box, track_id in zip(boxes, track_ids):
                     x1, y1, x2, y2 = box
                     track_id = int(track_id)
                     p_box = [frame_count, x1, y1, x2, y2, track_id]
-                    # print(f"Frame {frame_count}: ID {track_id} Bounding Box: {box}")
-                    p_boxes.append(p_box)
 
-                for box in p_boxes:
-                    frame_count, x1, y1, x2, y2, id = box
-                    if id == select_id - 1:
-                        newboxes.append([frame_count, x1, y1, x2, y2, id])
-                print("Frame count: ", frame_count)
-                out.write(frame)
+                    if track_id not in p_boxes:
+                        p_boxes[track_id] = []
+
+                    p_boxes[track_id].append(p_box)
             else:
                 break
 
-        print(newboxes)
-        s_frame_num = int(newboxes[0][0])
-        e_frame_num = int(newboxes[-1][0])
+        cap.release()
+        np.save(os.path.join(app.config['PROCESS_FOLDER'], f'{name}_boxes.npy').replace('\\', '/'), p_boxes)
+      # 각 id별로 중간에 위치한 프레임 저장
+        ids = []
+
+        cap = cv2.VideoCapture(file_path)
+        for track_id in p_boxes:
+            ids.append(track_id)
+            mid_index = len(p_boxes[track_id]) // 2
+            mid_frame = p_boxes[track_id][mid_index]
+            cap.set(cv2.CAP_PROP_POS_FRAMES, mid_frame[0])
+            success, frame = cap.read()
+            if success:
+                x1, y1, x2, y2 = mid_frame[1:5]
+                crop_img = frame[int(y1):int(y2), int(x1):int(x2)]
+                cv2.imwrite(os.path.join(app.config['STATIC_FOLDER'], f'{track_id}.jpg'), crop_img)
+
+        return render_template('index.html', ids=ids, filename=filename)
+      
+    return redirect(request.url)
+
+
+
+
+@app.route('/process', methods=['POST'])
+def process_video():
+    if 'select_id' not in request.form or 'filename' not in request.form:
+        return redirect(request.url)
+    select_id = int(request.form['select_id'])
+    filename = request.form['filename']
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).replace('\\', '/')
+    name = filename.rsplit('.', 1)[0]
+
+    frame_count = 0
+    p_boxes = []
+
+    cap = cv2.VideoCapture(file_path)  # 프레임 따기
+    w, h, fps = (int(cap.get(x)) for x in
+                 (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))  # 프레임 크기 저장
+
+
+    with open(os.path.join(app.config['PROCESS_FOLDER'], f'{name}_boxes.npy').replace('\\', '/'), 'rb') as f:
+        p_boxes_dict = np.load(f, allow_pickle=True).item()
+
+    if select_id in p_boxes_dict:
+        p_boxes = p_boxes_dict[select_id]
+
+    if p_boxes:
+        s_frame_num = int(p_boxes[0][0])
+        e_frame_num = int(p_boxes[-1][0])
         s_time = frame_to_time(s_frame_num, fps)
         e_time = frame_to_time(e_frame_num, fps)
-        print(s_time, e_time)
 
-        output_path = os.path.join(app.config['PROCESS_FOLDER'], name)
+        if s_time == e_time:
+            e_time = frame_to_time(s_frame_num + 1, fps)
+
+        output_path = os.path.join(app.config['PROCESS_FOLDER'], name, str(select_id)).replace('\\', '/')
         os.makedirs(output_path, exist_ok=True)
-        audio_file = clip_audio(name, file_path, s_time, e_time, output_path)
-        video_file = clip_video(name, file_path, s_time, e_time, output_path)
-        frame_file_path = crop_frame(newboxes, video_file, output_path)
-        video_file = frames_to_video(fps, frame_file_path, name, output_path)
-        create_final_video(name, video_file, audio_file, result_dir)
 
-        #
-        # result.release()
-        # cap.release()
-        # cv2.destroyAllWindows()
-        return redirect(url_for('result', name=name))
+        # Extract frames for the specific track_id
+        frame_file_path = crop_frame(p_boxes, file_path, output_path)
+        
+        # Create video from the extracted frames
+        video_file = frames_to_video(fps, frame_file_path, f'{name}_{select_id}', output_path)
+        audio_file = clip_audio(f'{name}_{select_id}', file_path, s_time, e_time, output_path)
+        create_final_video(f'{name}_{select_id}', video_file, audio_file, app.config['RESULTS_FOLDER'])
+
+    return redirect(url_for('result', name=f'{name}_{select_id}'))
 
 
 @app.route('/result')
 def result():
     name = request.args.get('name')
-    video_path = os.path.join(name +'.mp4')  # Adjust as needed for the actual output video filename
-    print(video_path)
+    video_path = os.path.join(app.config['RESULTS_FOLDER'], f'{name}.mp4').replace('\\', '/')  # Adjust as needed for the actual output video filename    print(video_path)
     return render_template('result.html', video_path=video_path)
 
 
 @app.route('/results/<path:filename>')
 def download_file(filename):
-    return send_from_directory(app.config['RESULTS_FOLDER'], filename)
+    return send_from_directory(app.config['RESULTS_FOLDER'], filename).replace('\\', '/')
 
 
 if __name__ == "__main__":

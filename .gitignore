@@ -55,3 +55,7 @@ process/
 uploads/
 
 osnet_x0_25_msmt17.pt
+
+
+ffmpeg/
+static/
