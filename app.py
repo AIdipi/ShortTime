@@ -10,6 +10,7 @@ from ultralytics import YOLO
 import numpy as np
 from video import frame_to_time, clip_video, crop_frame, frames_to_video, create_final_video, clip_audio
 import subprocess
+import time
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -33,7 +34,6 @@ if not os.path.exists(app.config['STATIC_FOLDER']):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-
 @app.route('/')
 def index():
     return render_template('base/index.html')  # 메인 페이지 렌더링
@@ -50,10 +50,10 @@ def img_processing():
 def img_choose():
     return render_template('base/img_choose.html')  # 이미지 선택 페이지 렌더링
 
-
-
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    start_time = time.time()  # 시작 시간 기록
+
     if 'file' not in request.files:
         return redirect(request.url)
     file = request.files['file']
@@ -139,12 +139,19 @@ def upload_file():
                 crop_img_filename = f'{filename}_{track_id}.jpg'  # Add .mp4 to filename
                 cv2.imwrite(os.path.join(app.config['STATIC_FOLDER'], crop_img_filename).replace('\\', '/'), crop_img)
 
+
+        end_time = time.time()  # 종료 시간 기록
+        elapsed_time = end_time - start_time  # 수행 시간 계산
+        print(f"Time taken for /upload: {elapsed_time} seconds")  # 수행 시간 출력
+
         return render_template('base/img_choose.html', ids=ids, filename=filename)
 
     return redirect(request.url)
 
 @app.route('/process', methods=['POST'])
 def process_video():
+    start_time = time.time()  # 시작 시간 기록
+
     if 'select_id' not in request.form or 'filename' not in request.form:
         return redirect(request.url)
     select_id = int(request.form['select_id'])
@@ -157,7 +164,7 @@ def process_video():
 
     cap = cv2.VideoCapture(file_path)  # Extract frames
     w, h, fps = (int(cap.get(x)) for x in
-                (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))  # Save frame size
+                 (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))  # Save frame size
 
     with open(os.path.join(app.config['PROCESS_FOLDER'], f'{name}_boxes.npy').replace('\\', '/'), 'rb') as f:
         p_boxes_dict = np.load(f, allow_pickle=True).item()
@@ -183,15 +190,25 @@ def process_video():
         video_file = frames_to_video(fps, frame_file_path, name, output_path)
         create_final_video(name, video_file, audio_file, app.config['RESULTS_FOLDER'])
 
-    return redirect(url_for('result', name=f'{name}_{select_id}'))
+    end_time = time.time()  # 종료 시간 기록
+    elapsed_time = end_time - start_time  # 수행 시간 계산
+    print(f"Time taken for /process: {elapsed_time} seconds")  # 수행 시간 출력
 
+    return redirect(url_for('result', name=f'{name}_{select_id}'))
 
 @app.route('/result')
 def result():
+    start_time = time.time()  # 시작 시간 기록
     name = request.args.get('name')
+
     # 숫자와 밑줄을 제거하여 기본 파일 이름을 가져옴
     base_name = re.sub(r'_\d+$', '', name)
     video_path = f"{base_name}.mp4"
+
+    end_time = time.time()  # 종료 시간 기록
+    elapsed_time = end_time - start_time  # 수행 시간 계산
+    print(f"Time taken for /result: {elapsed_time} seconds")  # 수행 시간 출력
+
     return render_template('base/img_result.html', video_path=video_path)
 
 @app.route('/results/<path:filename>')
@@ -200,7 +217,6 @@ def download_file(filename):
     base_name = re.sub(r'_\d+$', '', filename.rsplit('.', 1)[0])
     base_name_with_extension = f"{base_name}.mp4"
     return send_from_directory(app.config['RESULTS_FOLDER'], base_name_with_extension)
-
 
 if __name__ == "__main__":
     app.run()
