@@ -52,19 +52,27 @@ def clip_video(file_name, input_path, start_time, end_time, output_path):
 
 # 프레임에서 객체 추출
 def crop_frame(p_boxes, input_path, output_path):
-    output_path = os.path.join(output_path, f"frames").replace('\\', '/')
-    frame_file_path = os.path.join(output_path, f"frame").replace('\\', '/')
+# <<<<<<< HEAD
+    # output_path 설정 및 디렉토리 생성
+    output_path = os.path.join(output_path, "frames")
+    frame_file_path = os.path.join(output_path, "frame")
+# =======
+#     output_path = os.path.join(output_path, f"frames").replace('\\', '/')
+#     frame_file_path = os.path.join(output_path, f"frame").replace('\\', '/')
+# >>>>>>> 4168c90b0584f9c531a744503d409ee9a98378df
     os.makedirs(output_path, exist_ok=True)
+
     width = []
     height = []
-    margin = 2
+
+    # 각 bounding box의 너비와 높이를 계산
     for p_box in p_boxes:
         width.append(round(int(p_box[3] - p_box[1])))
         height.append(round(int(p_box[4] - p_box[2])))
 
+    # 가장 큰 너비와 높이를 crop 크기로 설정
     w = max(width)
     h = max(height)
-
     for i in range(len(p_boxes)):
         x = int(p_boxes[i][3] - p_boxes[i][1]) / 2
         y = int(p_boxes[i][4] - p_boxes[i][2]) / 2
@@ -81,8 +89,8 @@ def frames_to_video(fps, frame_file_path, file_name, output_path):
     command = f'ffmpeg -framerate {fps} -i "{frame_file_path}_%04d.png" -c:v libx264 -pix_fmt yuv420p "{output_file_path}"'
 
     try:
-        result = subprocess.run(command, shell=True, capture_output=True, check=True)
-        print("프레임 병합 성공: %s" % output_file_path)
+        subprocess.run(command, shell=True, capture_output=True)  # ffmpeg 명령어 실행
+        print("프레임 병합 성공 : %s" % output_file_path)
         return output_file_path
 
     except subprocess.CalledProcessError as e:
