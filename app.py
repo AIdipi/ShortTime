@@ -1,3 +1,4 @@
+import re
 import torch
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 import os
@@ -48,6 +49,7 @@ def img_processing():
 @app.route('/img_choose')
 def img_choose():
     return render_template('base/img_choose.html')  # 이미지 선택 페이지 렌더링
+
 
 
 @app.route('/upload', methods=['POST'])
@@ -176,19 +178,27 @@ def process_video():
         audio_file = clip_audio(name, file_path, s_time, e_time, output_path)
         video_file = clip_video(name, file_path, s_time, e_time, output_path)
         frame_file_path = crop_frame(p_boxes, video_file, output_path)
-        final_video_path = create_final_video(name, video_file, audio_file, app.config['RESULTS_FOLDER'])
+        video_file = frames_to_video(fps, frame_file_path, name, output_path)
+        create_final_video(name, video_file, audio_file, app.config['RESULTS_FOLDER'])
 
-    return redirect(url_for('result', name=name))
+    return redirect(url_for('result', name=f'{name}_{select_id}'))
+
 
 @app.route('/result')
 def result():
     name = request.args.get('name')
-    video_path = f"{name}.mp4"
-    return render_template('base/result.html', video_path=video_path)
+    # 숫자와 밑줄을 제거하여 기본 파일 이름을 가져옴
+    base_name = re.sub(r'_\d+$', '', name)
+    video_path = f"{base_name}.mp4"
+    return render_template('base/img_result.html', video_path=video_path)
 
 @app.route('/results/<path:filename>')
 def download_file(filename):
-    return send_from_directory(app.config['RESULTS_FOLDER'], filename)
+    # 숫자와 밑줄을 제거하여 기본 파일 이름을 가져옴
+    base_name = re.sub(r'_\d+$', '', filename.rsplit('.', 1)[0])
+    base_name_with_extension = f"{base_name}.mp4"
+    return send_from_directory(app.config['RESULTS_FOLDER'], base_name_with_extension)
+
 
 if __name__ == "__main__":
     app.run()

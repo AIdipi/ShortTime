@@ -13,7 +13,7 @@ def frame_to_time(frame_count, fps):
 # 특정 구간 오디오 추출
 def clip_audio(file_name, input_path, start_time, end_time, output_path):
     audio_file = f'{file_name}_audio'
-    output_file_path = os.path.join(output_path, f"{audio_file}.mp3").replace('\\', '/')
+    output_file_path = os.path.join(output_path, f"{audio_file}.mp3").replace('//','/') 
     command = f'ffmpeg -i "{input_path}" -ss {start_time} -to {end_time} -vn -acodec libmp3lame "{output_file_path}"'
 
     try:
@@ -26,7 +26,7 @@ def clip_audio(file_name, input_path, start_time, end_time, output_path):
         print("오디오 추출 중 오류 발생:")
         result = chardet.detect(e.stderr)
         encoding = result['encoding']
-        print(e.stderr.decode(encoding, errors='replace'))
+        print(e.stderr.decode(encoding , errors='replace'))
         raise
 
 # 특정 구간 비디오 추출
@@ -34,7 +34,7 @@ def clip_video(file_name, input_path, start_time, end_time, output_path):
     file_name = f'{file_name}_video'
     os.makedirs(output_path, exist_ok=True)
 
-    output_file_path = os.path.join(output_path, f"{file_name}.mp4").replace('\\', '/')
+    output_file_path = os.path.join(output_path, f"{file_name}.mp4")
 
     command = f'ffmpeg -ss {start_time} -to {end_time} -i "{input_path}" -c:v libx264 -preset fast -crf 22 -c:a aac "{output_file_path}"'
 
@@ -52,8 +52,8 @@ def clip_video(file_name, input_path, start_time, end_time, output_path):
 
 # 프레임에서 객체 추출
 def crop_frame(p_boxes, input_path, output_path):
-    output_path = os.path.join(output_path, "frames").replace('\\', '/')
-    frame_file_path = os.path.join(output_path, "frame").replace('\\', '/')
+    output_path = os.path.join(output_path, f"frames").replace('\\', '/')
+    frame_file_path = os.path.join(output_path, f"frame").replace('\\', '/')
     os.makedirs(output_path, exist_ok=True)
     width = []
     height = []
