@@ -155,7 +155,7 @@ def process_video():
 
     cap = cv2.VideoCapture(file_path)  # Extract frames
     w, h, fps = (int(cap.get(x)) for x in
-                 (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))  # Save frame size
+                (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))  # Save frame size
 
     with open(os.path.join(app.config['PROCESS_FOLDER'], f'{name}_boxes.npy').replace('\\', '/'), 'rb') as f:
         p_boxes_dict = np.load(f, allow_pickle=True).item()

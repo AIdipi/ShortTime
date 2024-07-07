@@ -8,11 +8,13 @@
     <div class="card-body">
         <form id="upload-file" action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
             <div class="mb-3">
-                <label for="formFile" class="form-label">Select a video file</label>
+                <label for="formFile" class="form-label">
+                    <h4>비디오 파일을 선택해주세요.</h4>
+                    <br>
+                </label>
                 <input class="form-control" type="file" id="formFile" name="file" required>
             </div>
         </form>
-        <br>
     </div>
 
     <div class="card-footer">
