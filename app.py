@@ -73,7 +73,8 @@ def upload_file():
         p_boxes = {}
         tracker = DeepOCSORT(
             model_weights=Path(reid_model_path),
-            device=torch.device("cuda:0"),  # Use GPU
+            # device=torch.device("cuda:0"),  # Use GPU
+            device=torch.device("mps"),
             fp16=False
         )
 
@@ -85,7 +86,9 @@ def upload_file():
                               cv2.VideoWriter_fourcc(*'mp4v'),
                               fps,
                               (w, h))
-        model = YOLO("tracking/weights/yolov8n.pt").to("cuda:0")  # Use GPU
+        # model = YOLO("tracking/weights/yolov8n.pt").to("cuda:0")  # Use GPU
+
+        model = YOLO("tracking/weights/yolov8n.pt").to("mps")  # Use GPU
 
         while cap.isOpened():
             frame_count += 1
@@ -99,8 +102,7 @@ def upload_file():
                         x1, y1, x2, y2, conf, cls = detection
                         dets.append([x1, y1, x2, y2, conf, int(cls)])
                 dets = np.array(dets)
-                # print(dets)
-                tracker.set_track_id(select_id)
+
                 tracks = tracker.update(dets, frame)
 
                 boxes = tracks[:, :4].tolist()
@@ -109,22 +111,7 @@ def upload_file():
                 for box, track_id in zip(boxes, track_ids):
                     x1, y1, x2, y2 = box
                     track_id = int(track_id)
-#                     p_box = [frame_count, x1, y1, x2, y2, track_id]
-# <<<<<<< HEAD
-#                     # print(f"Frame {frame_count}: ID {track_id} Bounding Box: {box}")
-#                     p_boxes.append(p_box)
-#                     if track_id == select_id - 1:
-#                         newboxes.append([frame_count, x1, y1, x2, y2, track_id])
-#                 print(f"Frame {frame_count}")
-#
-#                 out.write(frame)
-#             else:
-#                 break
-#
-#         print(p_boxes)
-#         s_frame_num = int(newboxes[0][0])
-#         e_frame_num = int(newboxes[-1][0])
-# =======
+                    p_box = [frame_count, x1, y1, x2, y2, track_id]
 
                     if track_id not in p_boxes:
                         p_boxes[track_id] = []
@@ -166,7 +153,6 @@ def process_video():
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename).replace('\\', '/')
     name = filename.rsplit('.', 1)[0]
 
-    frame_count = 0
     p_boxes = []
 
     cap = cv2.VideoCapture(file_path)  # Extract frames
@@ -182,7 +168,6 @@ def process_video():
     if p_boxes:
         s_frame_num = int(p_boxes[0][0])
         e_frame_num = int(p_boxes[-1][0])
-# >>>>>>> 4168c90b0584f9c531a744503d409ee9a98378df
         s_time = frame_to_time(s_frame_num, fps)
         e_time = frame_to_time(e_frame_num, fps)
 
@@ -198,17 +183,7 @@ def process_video():
         video_file = frames_to_video(fps, frame_file_path, name, output_path)
         create_final_video(name, video_file, audio_file, app.config['RESULTS_FOLDER'])
 
-# <<<<<<< HEAD
-#         print(newboxes)
-#
-#         #
-#         # result.release()
-#         # cap.release()
-#         # cv2.destroyAllWindows()
-#         return redirect(url_for('result', name=name))
-# =======
     return redirect(url_for('result', name=f'{name}_{select_id}'))
-# >>>>>>> 4168c90b0584f9c531a744503d409ee9a98378df
 
 
 @app.route('/result')
