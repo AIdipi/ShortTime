@@ -36,7 +36,7 @@ val_utils/
 *.engine
 
 # interactive plots
-*.html
+
 
 # tf models
 *saved_model/
@@ -58,4 +58,3 @@ osnet_x0_25_msmt17.pt
 
 
 ffmpeg/
-static/
