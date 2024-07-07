@@ -82,6 +82,7 @@ def upload_file():
                         dets.append([x1, y1, x2, y2, conf, int(cls)])
                 dets = np.array(dets)
 
+                # print(dets)
                 tracker.set_track_id(select_id)
                 tracks = tracker.update(dets, frame)
                 # print(tracks)
@@ -95,17 +96,15 @@ def upload_file():
                     p_box = [frame_count, x1, y1, x2, y2, track_id]
                     # print(f"Frame {frame_count}: ID {track_id} Bounding Box: {box}")
                     p_boxes.append(p_box)
+                    if track_id == select_id - 1:
+                        newboxes.append([frame_count, x1, y1, x2, y2, track_id])
+                print(f"Frame {frame_count}")
 
-                for box in p_boxes:
-                    frame_count, x1, y1, x2, y2, id = box
-                    if id == select_id - 1:
-                        newboxes.append([frame_count, x1, y1, x2, y2, id])
-                print("Frame count: ", frame_count)
                 out.write(frame)
             else:
                 break
 
-        print(newboxes)
+        print(p_boxes)
         s_frame_num = int(newboxes[0][0])
         e_frame_num = int(newboxes[-1][0])
         s_time = frame_to_time(s_frame_num, fps)
@@ -119,6 +118,8 @@ def upload_file():
         frame_file_path = crop_frame(newboxes, video_file, output_path)
         video_file = frames_to_video(fps, frame_file_path, name, output_path)
         create_final_video(name, video_file, audio_file, result_dir)
+
+        print(newboxes)
 
         #
         # result.release()

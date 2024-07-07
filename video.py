@@ -50,27 +50,33 @@ def clip_video(file_name, input_path, start_time, end_time, output_path):
 
 # 프레임에서 객체 추출
 def crop_frame(p_boxes, input_path, output_path):
-    output_path = os.path.join(output_path, f"frames")
-    frame_file_path = os.path.join(output_path, f"frame")
+    # output_path 설정 및 디렉토리 생성
+    output_path = os.path.join(output_path, "frames")
+    frame_file_path = os.path.join(output_path, "frame")
     os.makedirs(output_path, exist_ok=True)
+
     width = []
     height = []
-    margin = 2
 
+    # 각 bounding box의 너비와 높이를 계산
     for p_box in p_boxes:
         width.append(round(int(p_box[3] - p_box[1])))
         height.append(round(int(p_box[4] - p_box[2])))
 
+    # 가장 큰 너비와 높이를 crop 크기로 설정
     w = max(width)
     h = max(height)
 
-    for i in range(p_boxes[-1][0]):
-        x = int(p_boxes[i][3] - p_boxes[i][1])/2
-        y = int(p_boxes[i][4] - p_boxes[i][2])/2
-        command = f'ffmpeg -i "{input_path}" -vf "crop={w}:{h}:{int(x-(w/2))}:{int(y-(h/2))}, select=\'eq(n\\,{i})\'" -frames:v 1 "{frame_file_path}_{i:04d}.png"'
+    # 각 프레임을 crop하여 저장
+    for i in range(len(p_boxes)):
+        # x = ((p_boxes[i][3] - p_boxes[i][1]) / 2) + p_boxes[i][1]
+        # y = ((p_boxes[i][4] - p_boxes[i][2]) / 2) + p_boxes[i][2]
+        x = p_boxes[i][1]
+        y = p_boxes[i][2]
+        # command = f'ffmpeg -i "{input_path}" -vf "crop={w}:{h}:{int(x - (w / 2))}:{int(y - (h / 2))}, select=\'eq(n\\,{i+1})\'" -frames:v 1 "{frame_file_path}_{i+1:04d}.png"'
+        command = f'ffmpeg -i "{input_path}" -vf "crop={w}:{h}:{int(x)}:{int(y)}, select=\'eq(n\\,{i + 1})\'" -frames:v 1 "{frame_file_path}_{i + 1:04d}.png"'
         subprocess.run(command, shell=True)
 
-    # print("x: %s, y: %s, w: %s, h: %s"%(x,y,max(width),max(height)))
     print("프레임 추출 완료")
     return frame_file_path
 
@@ -81,14 +87,13 @@ def frames_to_video(fps, frame_file_path, file_name, output_path):
     command = f'ffmpeg -framerate {fps} -i "{frame_file_path}_%04d.png" -c:v libx264 -pix_fmt yuv420p "{output_file_path}"'
 
     try:
-        result = subprocess.run(command, shell=True, capture_output=True)  # ffmpeg 명령어 실행
+        subprocess.run(command, shell=True, capture_output=True)  # ffmpeg 명령어 실행
         print("프레임 병합 성공 : %s" % output_file_path)
         return output_file_path
 
 
     except subprocess.CalledProcessError as e:
         print("프레임 병합 중 오류 발생:")
-        # print(result.stdout.decode())  # 표준 출력 메세지 출력
         print(e.stderr.decode())  # 에러 메세지 출력
 
 # 최종 결과물 : 비디오 + 오디오 병합
@@ -98,10 +103,9 @@ def create_final_video(file_name, video_path, audio_path, output_path):
     command = f'ffmpeg -i "{video_path}" -i "{audio_path}" -c:v copy -c:a aac -strict experimental "{output_file_path}"'
 
     try:
-        result = subprocess.run(command, shell=True, capture_output=True)  # ffmpeg 명령어 실행
+        subprocess.run(command, shell=True, capture_output=True)  # ffmpeg 명령어 실행
         print("오디오 병합 성공 : %s" % file_name)
 
     except subprocess.CalledProcessError as e:
         print("오디오 병합 중 오류 발생:")
-        # print(result.stdout.decode())  # 표준 출력 메세지 출력
         print(e.stderr.decode())  # 에러 메세지 출력
