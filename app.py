@@ -86,9 +86,9 @@ def upload_file():
                               cv2.VideoWriter_fourcc(*'mp4v'),
                               fps,
                               (w, h))
-        # model = YOLO("tracking/weights/yolov8n.pt").to("cuda:0")  # Use GPU
+        # model = YOLO("tracking/weights/yolov8n.pt").to("cuda:0")  # Use GPU from Window
 
-        model = YOLO("tracking/weights/yolov8n.pt").to("mps")  # Use GPU
+        model = YOLO("tracking/weights/yolov8n.pt").to("mps")  # Use GPU from MAC
 
         while cap.isOpened():
             frame_count += 1
