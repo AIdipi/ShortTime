@@ -29,13 +29,26 @@ if not os.path.exists(app.config['RESULTS_FOLDER']):
 if not os.path.exists(app.config['STATIC_FOLDER']):
     os.makedirs(app.config['STATIC_FOLDER'])
 
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('base/index.html')  # 메인 페이지 렌더링
+
+@app.route('/about')
+def about():
+    return render_template('base/about.html')  # about 페이지 렌더링
+
+@app.route('/img_processing')
+def img_processing():
+    return render_template('base/img_processing.html')  # 이미지 처리 페이지 렌더링
+
+@app.route('/img_choose')
+def img_choose():
+    return render_template('base/img_choose.html')  # 이미지 선택 페이지 렌더링
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -58,7 +71,7 @@ def upload_file():
         p_boxes = {}
         tracker = DeepOCSORT(
             model_weights=Path(reid_model_path),
-            device=torch.device("cpu"),
+            device=torch.device("cuda:0"),  # Use GPU
             fp16=False
         )
 
@@ -70,7 +83,7 @@ def upload_file():
                               cv2.VideoWriter_fourcc(*'mp4v'),
                               fps,
                               (w, h))
-        model = YOLO("tracking/weights/yolov8n.pt")
+        model = YOLO("tracking/weights/yolov8n.pt").to("cuda:0")  # Use GPU
 
         while cap.isOpened():
             frame_count += 1
@@ -118,9 +131,10 @@ def upload_file():
             if success:
                 x1, y1, x2, y2 = mid_frame[1:5]
                 crop_img = frame[int(y1):int(y2), int(x1):int(x2)]
-                cv2.imwrite(os.path.join(app.config['STATIC_FOLDER'], f'{track_id}.jpg').replace('\\', '/'), crop_img)
+                crop_img_filename = f'{filename}_{track_id}.jpg'  # Add .mp4 to filename
+                cv2.imwrite(os.path.join(app.config['STATIC_FOLDER'], crop_img_filename).replace('\\', '/'), crop_img)
 
-        return render_template('index.html', ids=ids, filename=filename)
+        return render_template('base/img_choose.html', ids=ids, filename=filename)
 
     return redirect(request.url)
 
@@ -162,21 +176,19 @@ def process_video():
         audio_file = clip_audio(name, file_path, s_time, e_time, output_path)
         video_file = clip_video(name, file_path, s_time, e_time, output_path)
         frame_file_path = crop_frame(p_boxes, video_file, output_path)
-        video_file = frames_to_video(fps, frame_file_path, name, output_path)
-        create_final_video(name, video_file, audio_file, app.config['RESULTS_FOLDER'])
+        final_video_path = create_final_video(name, video_file, audio_file, app.config['RESULTS_FOLDER'])
 
-    return redirect(url_for('result', name=f'{name}_{select_id}'))
+    return redirect(url_for('result', name=name))
 
 @app.route('/result')
 def result():
     name = request.args.get('name')
-    video_path = os.path.join(app.config['RESULTS_FOLDER'], f'{name}.mp4').replace('\\', '/')
-    print(video_path)
-    return render_template('result.html', video_path=video_path)
+    video_path = f"{name}.mp4"
+    return render_template('base/result.html', video_path=video_path)
 
 @app.route('/results/<path:filename>')
 def download_file(filename):
-    return send_from_directory(app.config['RESULTS_FOLDER'], filename).replace('\\', '/')
+    return send_from_directory(app.config['RESULTS_FOLDER'], filename)
 
 if __name__ == "__main__":
     app.run()
